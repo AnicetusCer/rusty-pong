@@ -17,3 +17,7 @@ cargo run
 ## Note
 
 This project was AI-built in about 20 seconds by GPT-5.4.
+
+## Binaries
+
+Tagged GitHub releases can include ready-to-run binaries for Linux, Windows, and macOS in the Releases page.

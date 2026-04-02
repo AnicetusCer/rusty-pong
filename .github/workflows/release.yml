@@ -1,0 +1,69 @@
+name: Release Builds
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to upload assets to
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-x86_64
+            binary_name: rusty-pong
+            asset_name: rusty-pong-linux-x86_64.zip
+          - os: windows-latest
+            label: windows-x86_64
+            binary_name: rusty-pong.exe
+            asset_name: rusty-pong-windows-x86_64.zip
+          - os: macos-latest
+            label: macos-x86_64
+            binary_name: rusty-pong
+            asset_name: rusty-pong-macos-x86_64.zip
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Package binary on Unix
+        if: runner.os != 'Windows'
+        run: |
+          mkdir dist
+          cp "target/release/${{ matrix.binary_name }}" dist/
+          cp README.md LICENSE dist/
+          cd dist
+          zip -r "../${{ matrix.asset_name }}" .
+
+      - name: Package binary on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "target/release/${{ matrix.binary_name }}" dist/
+          Copy-Item README.md dist/
+          Copy-Item LICENSE dist/
+          Compress-Archive -Path dist/* -DestinationPath "${{ matrix.asset_name }}"
+
+      - name: Upload asset to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+          files: ${{ matrix.asset_name }}
